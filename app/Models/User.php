@@ -1,17 +1,27 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Concerns\BelongsToTenant;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
+    use BelongsToTenant;
+
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory;
+
+    use HasRoles;
+    use Notifiable;
+
+    protected string $guard_name = 'web';
 
     /**
      * The attributes that are mass assignable.
@@ -22,6 +32,10 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'type',
+        'meta',
+        'is_active',
+        'must_change_password',
     ];
 
     /**
@@ -42,6 +56,9 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
+            'meta' => 'array',
+            'is_active' => 'boolean',
+            'must_change_password' => 'boolean',
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
