@@ -6,9 +6,11 @@ namespace App\Models\Tenancy;
 
 use App\Enums\Tenancy\TenantStatus;
 use App\Models\Billing\Subscription;
+use App\Models\Billing\SubscriptionEvent;
 use App\Models\Billing\TenantFeature;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Stancl\Tenancy\Database\Concerns\HasDomains;
@@ -90,5 +92,15 @@ class Tenant extends BaseTenant
     public function tenantFeatures(): HasMany
     {
         return $this->hasMany(TenantFeature::class, 'tenant_id');
+    }
+
+    public function subscriptionEvents(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            SubscriptionEvent::class,
+            Subscription::class,
+            'tenant_id',
+            'subscription_id',
+        );
     }
 }

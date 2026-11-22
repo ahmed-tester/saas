@@ -38,7 +38,7 @@ class Domain extends BaseDomain
     public function fullHost(): string
     {
         if ($this->type === DomainType::Subdomain) {
-            return $this->domain . '.' . config('app.base_domain');
+            return $this->domain.'.'.config('app.base_domain');
         }
 
         return $this->domain;

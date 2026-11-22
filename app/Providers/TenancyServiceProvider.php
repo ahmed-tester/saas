@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Http\Middleware\InitializeTenancyByCustomDomain;
+use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Stancl\JobPipeline\JobPipeline;
 use Stancl\Tenancy\Events;
-use Stancl\Tenancy\Jobs;
 use Stancl\Tenancy\Listeners;
 use Stancl\Tenancy\Middleware;
 
@@ -52,11 +53,17 @@ class TenancyServiceProvider extends ServiceProvider
             Events\InitializingTenancy::class => [],
             Events\TenancyInitialized::class => [
                 Listeners\BootstrapTenancy::class,
+                function (Events\TenancyInitialized $event): void {
+                    setPermissionsTeamId($event->tenancy->tenant->getTenantKey());
+                },
             ],
 
             Events\EndingTenancy::class => [],
             Events\TenancyEnded::class => [
                 Listeners\RevertToCentralContext::class,
+                function (): void {
+                    setPermissionsTeamId(null);
+                },
             ],
 
             Events\BootstrappingTenancy::class => [],
@@ -116,6 +123,7 @@ class TenancyServiceProvider extends ServiceProvider
             // Even higher priority than the initialization middleware
             Middleware\PreventAccessFromCentralDomains::class,
 
+            InitializeTenancyByCustomDomain::class,
             Middleware\InitializeTenancyByDomain::class,
             Middleware\InitializeTenancyBySubdomain::class,
             Middleware\InitializeTenancyByDomainOrSubdomain::class,
@@ -124,7 +132,7 @@ class TenancyServiceProvider extends ServiceProvider
         ];
 
         foreach (array_reverse($tenancyMiddleware) as $middleware) {
-            $this->app[\Illuminate\Contracts\Http\Kernel::class]->prependToMiddlewarePriority($middleware);
+            $this->app[Kernel::class]->prependToMiddlewarePriority($middleware);
         }
     }
 }

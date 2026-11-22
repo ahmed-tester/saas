@@ -11,6 +11,6 @@ enum BillingPeriod: string
 
     public function label(): string
     {
-        return __('billing.period.' . $this->value);
+        return __('billing.period.'.$this->value);
     }
 }

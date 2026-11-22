@@ -11,6 +11,6 @@ enum FeatureType: string
 
     public function label(): string
     {
-        return __('billing.feature_type.' . $this->value);
+        return __('billing.feature_type.'.$this->value);
     }
 }

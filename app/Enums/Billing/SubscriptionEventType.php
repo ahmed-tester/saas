@@ -14,6 +14,6 @@ enum SubscriptionEventType: string
 
     public function label(): string
     {
-        return __('billing.subscription_event.' . $this->value);
+        return __('billing.subscription_event.'.$this->value);
     }
 }

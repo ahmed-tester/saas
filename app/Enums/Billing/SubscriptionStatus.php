@@ -12,6 +12,6 @@ enum SubscriptionStatus: string
 
     public function label(): string
     {
-        return __('billing.subscription_status.' . $this->value);
+        return __('billing.subscription_status.'.$this->value);
     }
 }

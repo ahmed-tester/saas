@@ -34,6 +34,6 @@ enum FeatureKey: string
 
     public function label(): string
     {
-        return __('billing.feature.' . $this->value);
+        return __('billing.feature.'.$this->value);
     }
 }

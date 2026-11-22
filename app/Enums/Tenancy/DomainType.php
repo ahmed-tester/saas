@@ -11,6 +11,6 @@ enum DomainType: string
 
     public function label(): string
     {
-        return __('tenancy.domain_type.' . $this->value);
+        return __('tenancy.domain_type.'.$this->value);
     }
 }

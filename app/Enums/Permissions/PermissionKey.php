@@ -29,6 +29,6 @@ enum PermissionKey: string
 
     public function label(): string
     {
-        return __('permissions.key.' . $this->value);
+        return __('permissions.key.'.$this->value);
     }
 }

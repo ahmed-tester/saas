@@ -10,10 +10,20 @@
 - Follow the [Phase 1 implementation plan](<خطة تنفيذ SaaS إدارة المحلات — المرحلة الأولى (تعليمات للمنفّذ) (2).md>). Use the rules in Section 8, the implementation order in Section 9, and the acceptance criteria in Section 10.
 - Consult the project owner on open decisions and any changes to the scope, dependencies, or dependency versions.
 
+## Project Documentation
+
+- Write project documentation in Arabic. Keep file names, code identifiers, and commands in their original form.
+- Use `README.md` as the entry point. Explain what the project does, who it serves, and how to run it and its tests locally. Link to the project documentation.
+- Use `docs/roadmap.md` to record the work completed, the current work, and the next step. Link each Phase 1 step to its acceptance criteria and record its status and latest verification. Mark a step complete when its acceptance criteria have been verified.
+- Use `docs/architecture.md` to explain the request flow, tenant data isolation, and how the Super Admin panel operates on a selected tenant.
+- Use `docs/decisions.md` to record decisions and their rationale, along with open questions for the project owner.
+- Use the Phase 1 implementation plan as the reference for scope and acceptance criteria. Update the affected documentation in the same pull request when a task changes setup, system behavior, or roadmap status.
+
 ## Code Organization
 
 - Keep controllers and Filament actions focused on handling requests and delegating work. Use Form Requests for validation in controllers, and group business logic in services by domain, such as `app/Services/Billing`.
-- Use clear English names and enums for fixed statuses and types. Keep user-facing text in `lang` files.
+- Use clear English names and enums for fixed statuses and types.
+- Keep user-facing text in Laravel translation files. Add or update each translation key in both Arabic (`lang/ar`) and English (`lang/en`) in the same change. Both languages are required for Phase 1.
 - Follow `.editorconfig` and use Laravel Pint to format PHP code.
 
 ## Tenant Data Isolation

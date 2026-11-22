@@ -12,6 +12,6 @@ enum ExpiryBehavior: string
 
     public function label(): string
     {
-        return __('billing.expiry_behavior.' . $this->value);
+        return __('billing.expiry_behavior.'.$this->value);
     }
 }

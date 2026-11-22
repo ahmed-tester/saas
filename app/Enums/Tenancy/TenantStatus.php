@@ -12,6 +12,6 @@ enum TenantStatus: string
 
     public function label(): string
     {
-        return __('tenancy.status.' . $this->value);
+        return __('tenancy.status.'.$this->value);
     }
 }
