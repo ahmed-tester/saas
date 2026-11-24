@@ -28,13 +28,15 @@ class UserService
     public function create(Tenant $tenant, array $data, array $roles = []): User
     {
         return TenantContext::central(function () use ($tenant, $data, $roles): User {
-            $limit = $this->featureGate->for($tenant)->limit(FeatureKey::MaxUsers);
-
-            if ($limit === 0 || ($limit !== null && $tenant->users()->count() >= $limit)) {
-                throw new RuntimeException(__('billing.user_limit_reached'));
-            }
-
             $user = DB::transaction(function () use ($tenant, $data, $roles): User {
+                Tenant::query()->whereKey($tenant->id)->lockForUpdate()->firstOrFail();
+
+                $limit = $this->featureGate->for($tenant)->limit(FeatureKey::MaxUsers);
+
+                if ($limit === 0 || ($limit !== null && $tenant->users()->lockForUpdate()->count() >= $limit)) {
+                    throw new RuntimeException(__('billing.user_limit_reached'));
+                }
+
                 /** @var User $user */
                 $user = $tenant->users()->create([
                     'name' => $data['name'],
@@ -52,7 +54,7 @@ class UserService
                 }
 
                 return $user;
-            });
+            }, attempts: 3);
 
             $this->permissionRegistrar->forgetCachedPermissions();
 
@@ -67,21 +69,29 @@ class UserService
     public function update(Tenant $tenant, User $user, array $data, ?array $roles = null): User
     {
         return TenantContext::central(function () use ($tenant, $user, $data, $roles): User {
-            if ((int) $user->tenant_id !== $tenant->id) {
-                throw new InvalidArgumentException('User does not belong to the specified tenant.');
-            }
-
-            setPermissionsTeamId($tenant->id);
-
-            $isOwner = $user->hasRole('owner');
-            $removingOwnerRole = $roles !== null && $isOwner && ! in_array('owner', $roles, true);
-            $deactivatingOwner = $isOwner && array_key_exists('is_active', $data) && ! (bool) $data['is_active'];
-
-            if (($removingOwnerRole || $deactivatingOwner) && ! $this->hasOtherActiveOwner($tenant, $user)) {
-                throw new InvalidArgumentException(__('tenancy.cannot_remove_last_owner'));
-            }
-
             DB::transaction(function () use ($tenant, $user, $data, $roles): void {
+                Tenant::query()->whereKey($tenant->id)->lockForUpdate()->firstOrFail();
+
+                $lockedUser = User::query()
+                    ->where('tenant_id', $tenant->id)
+                    ->whereKey($user->id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($lockedUser === null) {
+                    throw new InvalidArgumentException('User does not belong to the specified tenant.');
+                }
+
+                setPermissionsTeamId($tenant->id);
+
+                $isOwner = $lockedUser->hasRole('owner');
+                $removingOwnerRole = $roles !== null && $isOwner && ! in_array('owner', $roles, true);
+                $deactivatingOwner = $isOwner && array_key_exists('is_active', $data) && ! (bool) $data['is_active'];
+
+                if (($removingOwnerRole || $deactivatingOwner) && ! $this->hasOtherActiveOwner($tenant, $lockedUser)) {
+                    throw new InvalidArgumentException(__('tenancy.cannot_remove_last_owner'));
+                }
+
                 $payload = array_intersect_key($data, array_flip([
                     'name',
                     'email',
@@ -97,14 +107,14 @@ class UserService
                 }
 
                 if ($payload !== []) {
-                    $user->update($payload);
+                    $lockedUser->update($payload);
                 }
 
                 if ($roles !== null) {
                     setPermissionsTeamId($tenant->id);
-                    $user->syncRoles($roles);
+                    $lockedUser->syncRoles($roles);
                 }
-            });
+            }, attempts: 3);
 
             $this->permissionRegistrar->forgetCachedPermissions();
 
@@ -115,17 +125,28 @@ class UserService
     public function delete(Tenant $tenant, User $user): void
     {
         TenantContext::central(function () use ($tenant, $user): void {
-            if ((int) $user->tenant_id !== $tenant->id) {
-                throw new InvalidArgumentException('User does not belong to the specified tenant.');
-            }
+            DB::transaction(function () use ($tenant, $user): void {
+                Tenant::query()->whereKey($tenant->id)->lockForUpdate()->firstOrFail();
 
-            setPermissionsTeamId($tenant->id);
+                $lockedUser = User::query()
+                    ->where('tenant_id', $tenant->id)
+                    ->whereKey($user->id)
+                    ->lockForUpdate()
+                    ->first();
 
-            if ($user->hasRole('owner') && ! $this->hasOtherActiveOwner($tenant, $user)) {
-                throw new InvalidArgumentException(__('tenancy.cannot_remove_last_owner'));
-            }
+                if ($lockedUser === null) {
+                    throw new InvalidArgumentException('User does not belong to the specified tenant.');
+                }
 
-            $user->delete();
+                setPermissionsTeamId($tenant->id);
+
+                if ($lockedUser->hasRole('owner') && ! $this->hasOtherActiveOwner($tenant, $lockedUser)) {
+                    throw new InvalidArgumentException(__('tenancy.cannot_remove_last_owner'));
+                }
+
+                $lockedUser->delete();
+            }, attempts: 3);
+
             $this->permissionRegistrar->forgetCachedPermissions();
         });
     }
@@ -169,6 +190,7 @@ class UserService
                 $query->where('name', 'owner')
                     ->where('roles.tenant_id', $tenant->id);
             })
+            ->lockForUpdate()
             ->exists();
     }
 }

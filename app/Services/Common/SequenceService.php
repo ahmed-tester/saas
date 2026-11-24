@@ -6,7 +6,6 @@ namespace App\Services\Common;
 
 use App\Exceptions\Tenancy\TenantContextMissingException;
 use App\Models\Common\Sequence;
-use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 class SequenceService
@@ -19,37 +18,28 @@ class SequenceService
 
         $resolvedYear = $year ?? 0;
         $tenantId = (int) tenant()->getTenantKey();
+        $now = now();
 
-        return DB::transaction(function () use ($tenantId, $type, $resolvedYear): int {
+        Sequence::query()->insertOrIgnore([
+            'tenant_id' => $tenantId,
+            'type' => $type,
+            'year' => $resolvedYear,
+            'last_number' => 0,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        return DB::transaction(function () use ($type, $resolvedYear): int {
             $sequence = Sequence::query()
                 ->where('type', $type)
                 ->where('year', $resolvedYear)
                 ->lockForUpdate()
-                ->first();
-
-            if ($sequence === null) {
-                try {
-                    Sequence::query()->create([
-                        'type' => $type,
-                        'year' => $resolvedYear,
-                        'last_number' => 0,
-                    ]);
-                } catch (QueryException) {
-                    // Concurrent first-time creation for this (tenant_id, type, year)
-                }
-
-                $sequence = Sequence::query()
-                    ->where('tenant_id', $tenantId)
-                    ->where('type', $type)
-                    ->where('year', $resolvedYear)
-                    ->lockForUpdate()
-                    ->firstOrFail();
-            }
+                ->firstOrFail();
 
             $sequence->last_number = $sequence->last_number + 1;
             $sequence->save();
 
             return $sequence->last_number;
-        });
+        }, attempts: 3);
     }
 }

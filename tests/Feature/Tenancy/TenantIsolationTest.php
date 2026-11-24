@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Tenancy;
 
 use App\Exceptions\Tenancy\TenantContextMissingException;
+use App\Exceptions\Tenancy\TenantMismatchException;
 use App\Http\Middleware\InitializeTenancyByCustomDomain;
 use App\Models\Tenancy\Tenant;
 use App\Models\User;
@@ -184,5 +185,46 @@ class TenantIsolationTest extends TestCase
 
         $this->assertSame($this->tenantA->id, $observedTenantId);
         tenancy()->end();
+    }
+
+    public function test_saving_model_from_another_tenant_throws_mismatch_exception(): void
+    {
+        tenancy()->initialize($this->tenantA);
+        $userA = User::query()->findOrFail($this->ownerA->id);
+        tenancy()->end();
+
+        tenancy()->initialize($this->tenantB);
+
+        try {
+            $userA->name = 'Tampered Name';
+            $userA->save();
+            $this->fail('Expected TenantMismatchException when saving tenant A model in tenant B context.');
+        } catch (TenantMismatchException) {
+            // Expected
+        } finally {
+            tenancy()->end();
+        }
+
+        $this->assertSame('Owner A', $this->ownerA->fresh()->name);
+    }
+
+    public function test_deleting_model_from_another_tenant_throws_mismatch_exception(): void
+    {
+        tenancy()->initialize($this->tenantA);
+        $userA = User::query()->findOrFail($this->ownerA->id);
+        tenancy()->end();
+
+        tenancy()->initialize($this->tenantB);
+
+        try {
+            $userA->delete();
+            $this->fail('Expected TenantMismatchException when deleting tenant A model in tenant B context.');
+        } catch (TenantMismatchException) {
+            // Expected
+        } finally {
+            tenancy()->end();
+        }
+
+        $this->assertNotNull($this->ownerA->fresh());
     }
 }
